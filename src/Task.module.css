@@ -1,0 +1,15 @@
+
+.TaskStatus {
+    width: auto;
+}
+
+.Ok {
+    background-color: azure;
+}
+.Err {
+    background-color: pink;
+}
+
+.TaskStatus .next {
+    font-size: small;
+}

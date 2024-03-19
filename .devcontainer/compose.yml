@@ -1,0 +1,15 @@
+version: '3'
+services:
+
+  app:
+    build: .
+    container_name: chron_dev
+    restart: no
+    volumes:
+      - ..:/workspace:cached
+      - modules:/workspace/node_modules
+      - rust_target:/workspace/wasm_mod/target
+
+volumes:
+  modules:
+  rust_target:
