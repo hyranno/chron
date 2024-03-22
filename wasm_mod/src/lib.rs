@@ -1,21 +1,23 @@
 use wasm_bindgen::prelude::*;
 
-#[wasm_bindgen]
-extern {
-    fn alert (s: &str);
-
-    #[wasm_bindgen(js_namespace=console)]
-    fn log (s: &str);
-}
+mod task;
+mod storage;
+mod external;
 
 
 #[wasm_bindgen]
 pub fn hello_content () {
-    alert("Hello from the content script!");
+    external::alert("Hello from the content script!");
 }
 
 
 #[wasm_bindgen]
 pub fn hello_background () {
-    log("Hello from the background script!");
+    external::log("Hello from the background script!");
+}
+
+
+#[wasm_bindgen]
+pub fn dummy_task_infos() -> Vec<task::JsTaskInfo> {
+    storage::dummy_tasks().into_iter().map(|t| t.info().into()).collect()
 }

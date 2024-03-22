@@ -20,3 +20,39 @@ export class Err<T> extends ResultEnum<T> {
     [Symbol.toStringTag] = "Err"
 }
 
+
+
+function openWorkingTab(url: string): Promise<chrome.tabs.Tab> {
+    return chrome.tabs.create({
+        active: false,
+        index: 0,
+        pinned: true,
+        url: url,
+    })
+}
+function closeTab(tab: chrome.tabs.Tab) {
+    chrome.tabs.remove(tab.id!);
+}
+
+
+function fetchStringByXpath(tab: chrome.tabs.Tab, xpath: string): Promise<string | undefined> {
+    return chrome.scripting.executeScript({
+        target: {tabId: tab.id!},
+        func: ((xpath: string) => document.evaluate(xpath, document)) as unknown as () => void,     // forcing type match
+        args: [xpath],
+    }).then(injected => {
+        if (!(injected[0].result instanceof XPathResult)) {return null;}
+        if ((injected[0].result as XPathResult).resultType != XPathResult.STRING_TYPE) {return null;}
+        return (injected[0].result as XPathResult).stringValue;
+    });
+}
+
+function addToReadingList(tab: chrome.tabs.Tab) {
+    chrome.readingList.addEntry({
+        url: tab.url!,
+        hasBeenRead: false,
+        title: tab.title!,
+    });
+}
+
+

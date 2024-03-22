@@ -4,6 +4,8 @@
   "description": "",
   "type": "module",
   "scripts": {
+    "build_wasm": "wasm-pack build wasm_mod",
+    "link_wasm": "(cd wasm_mod/pkg && yarn link) && yarn link wasm_mod",
     "start": "vite",
     "dev": "vite",
     "build": "vite build",
