@@ -1,5 +1,7 @@
 
 use chrono::{DateTime, TimeDelta, Utc};
+use serde::{Deserialize, Serialize};
+use enum_dispatch::enum_dispatch;
 use wasm_bindgen::prelude::*;
 
 use crate::external::Tab;
@@ -23,7 +25,7 @@ impl From<TaskInfo> for JsTaskInfo {
     }
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct TaskInfo {
     pub name: String,
     pub next_run: Option<DateTime<Utc>>,
@@ -31,15 +33,28 @@ pub struct TaskInfo {
 }
 
 
+#[enum_dispatch(TaskEnum)]
 pub trait Task {
     fn run(&mut self);
     fn info(&self) -> TaskInfo;
 }
+#[enum_dispatch]
+#[derive(Serialize, Deserialize)]
+pub enum TaskEnum {
+    WatchUpdateTask,
+}
 
+#[enum_dispatch(CheckerEnum)]
 pub trait Checker {
     fn check(&mut self, tab: &Tab) -> Result<bool, String>;
 }
+#[enum_dispatch]
+#[derive(Serialize, Deserialize)]
+pub enum CheckerEnum {
+    ChangeChecker,
+}
 
+#[derive(Serialize, Deserialize)]
 pub struct ChangeChecker {
     xpath: String,
     previous: Option<String>,
@@ -66,26 +81,35 @@ impl Checker for ChangeChecker {
     }
 }
 
+#[enum_dispatch(PlannerEnum)]
 pub trait Planner {
     fn next(&mut self, tab: &Tab) -> DateTime<Utc>;
 }
+#[enum_dispatch]
+#[derive(Serialize, Deserialize)]
+pub enum PlannerEnum {
+    IntervalPlanner,
+}
 
+
+#[derive(Serialize, Deserialize)]
 pub struct IntervalPlanner {
-    interval: TimeDelta,
+    interval_seconds: i64,  // TimeDelta is not Serializable
     previous: Option<DateTime<Utc>>,
 }
 impl IntervalPlanner {
     pub fn new(interval: TimeDelta) -> Self {
-        Self { interval, previous: None }
+        Self { interval_seconds: interval.num_seconds(), previous: None }
     }
 }
 impl Planner for IntervalPlanner {
     fn next(&mut self, _tab: &Tab) -> DateTime<Utc> {
         let previous = self.previous.unwrap_or(Utc::now());
         let delay = Utc::now() - previous;
-        let mut next = previous + self.interval;
+        let interval = TimeDelta::try_seconds(self.interval_seconds).unwrap();
+        let mut next = previous + interval;
         while next < previous + delay {
-            next += self.interval;
+            next += interval;
         }
         self.previous = Some(next);
         next
@@ -93,18 +117,19 @@ impl Planner for IntervalPlanner {
 }
 
 
+#[derive(Serialize, Deserialize)]
 pub struct WatchUpdateTask {
     url: String,
-    checker: Box<dyn Checker>,
-    planner: Box<dyn Planner>,
+    checker: CheckerEnum,
+    planner: PlannerEnum,
     info: TaskInfo,
 }
 impl WatchUpdateTask {
-    pub fn new(name: &str, next_run: Option<DateTime<Utc>>, url: &str, checker: impl Checker + 'static, planner: impl Planner + 'static) -> Self {
+    pub fn new(name: &str, next_run: Option<DateTime<Utc>>, url: &str, checker: impl Into<CheckerEnum>, planner: impl Into<PlannerEnum>) -> Self {
         Self {
             url: String::from(url),
-            checker: Box::new(checker),
-            planner: Box::new(planner),
+            checker: checker.into(),
+            planner: planner.into(),
             info: TaskInfo { name: String::from(name), next_run, last_result: None }
         }
     }

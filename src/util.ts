@@ -55,4 +55,12 @@ function addToReadingList(tab: chrome.tabs.Tab) {
     });
 }
 
-
+/*
+chrome.storage.sync.set({ key: value }).then(() => {
+    console.log("Value is set");
+  });
+  
+  chrome.storage.sync.get(["key"]).then((result) => {
+    console.log("Value is " + result.key);
+  });
+  */
