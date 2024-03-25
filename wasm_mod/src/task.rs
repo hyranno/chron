@@ -7,7 +7,7 @@ use wasm_bindgen::prelude::*;
 use crate::external::Tab;
 
 #[wasm_bindgen(getter_with_clone)]
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct JsTaskInfo {
     pub name: String,
     pub next_run: Option<String>,   // rfc_2822

@@ -1,6 +1,15 @@
 use chrono::TimeDelta;
 
-use crate::task::{ChangeChecker, IntervalPlanner, TaskEnum, WatchUpdateTask};
+use crate::{external::{load_serialized, store}, task::{ChangeChecker, IntervalPlanner, TaskEnum, WatchUpdateTask}};
+
+
+pub async fn store_tasks(tasks: Vec<TaskEnum>) -> Result<(), String> {
+    store("tasks", &tasks).await
+}
+pub async fn load_tasks() -> Result<Vec<TaskEnum>, String> {
+    let loaded = load_serialized("tasks").await?;
+    serde_json::from_str(&loaded).map_err(|e| e.to_string())
+}
 
 
 pub fn dummy_tasks() -> Vec<TaskEnum> {
