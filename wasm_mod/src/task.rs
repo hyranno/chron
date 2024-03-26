@@ -35,7 +35,7 @@ pub struct TaskInfo {
 
 #[enum_dispatch(TaskEnum)]
 pub trait Task {
-    fn run(&mut self);
+    async fn run(&mut self) -> TaskInfo;
     fn info(&self) -> TaskInfo;
 }
 #[enum_dispatch]
@@ -46,7 +46,7 @@ pub enum TaskEnum {
 
 #[enum_dispatch(CheckerEnum)]
 pub trait Checker {
-    fn check(&mut self, tab: &Tab) -> Result<bool, String>;
+    async fn check(&mut self, tab: &Tab) -> Result<bool, String>;
 }
 #[enum_dispatch]
 #[derive(Serialize, Deserialize)]
@@ -68,8 +68,8 @@ impl ChangeChecker {
     }
 }
 impl Checker for ChangeChecker {
-    fn check(&mut self, tab: &Tab) -> Result<bool, String> {
-        let fetch_res = tab.fetch_string_by_xpath(&self.xpath);
+    async fn check(&mut self, tab: &Tab) -> Result<bool, String> {
+        let fetch_res = tab.fetch_string_by_xpath(&self.xpath).await;
         fetch_res.map(|fetched| {
             self.previous = Some(fetched.clone());
             if let Some(prev) = self.previous.clone() {
@@ -83,7 +83,7 @@ impl Checker for ChangeChecker {
 
 #[enum_dispatch(PlannerEnum)]
 pub trait Planner {
-    fn next(&mut self, tab: &Tab) -> DateTime<Utc>;
+    async fn next(&mut self, tab: &Tab) -> DateTime<Utc>;
 }
 #[enum_dispatch]
 #[derive(Serialize, Deserialize)]
@@ -103,7 +103,7 @@ impl IntervalPlanner {
     }
 }
 impl Planner for IntervalPlanner {
-    fn next(&mut self, _tab: &Tab) -> DateTime<Utc> {
+    async fn next(&mut self, _tab: &Tab) -> DateTime<Utc> {
         let previous = self.previous.unwrap_or(Utc::now());
         let delay = Utc::now() - previous;
         let interval = TimeDelta::try_seconds(self.interval_seconds).unwrap();
@@ -138,16 +138,17 @@ impl Task for WatchUpdateTask {
     fn info(&self) -> TaskInfo {
         self.info.clone()
     }
-    fn run(&mut self) {
-        let tab = Tab::open(&self.url);
-        let check_res = self.checker.check(&tab);
-        if let Ok(pass_check) = check_res {
-            if pass_check { tab.add_to_reading_list() };
-            self.info.next_run = Some(self.planner.next(&tab));
-        }
-        self.info.last_result = Some(check_res.map(|updated| String::from(
+    async fn run(&mut self) -> TaskInfo {
+        let tab = Tab::open(&self.url).await;
+        let check_res = self.checker.check(&tab).await;
+        self.info.last_result = Some(check_res.clone().map(|updated| String::from(
             if updated {"updated"} else {"no update"}
         )));
-        tab.close();
+        if let Ok(pass_check) = check_res {
+            if pass_check { tab.add_to_reading_list().await; };
+            self.info.next_run = Some(self.planner.next(&tab).await);
+        }
+        tab.close().await;
+        self.info()
     }
 }

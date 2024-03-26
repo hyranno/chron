@@ -1,4 +1,4 @@
-use futures::{Future, FutureExt, TryFutureExt};
+use futures::{future::join_all, Future, FutureExt, TryFutureExt};
 use wasm_bindgen::prelude::*;
 
 mod task;
@@ -24,6 +24,7 @@ pub fn hello_background () {
 pub fn dummy_task_infos() -> Promise {    //Promise<Vec<task::JsTaskInfo>>
     console_error_panic_hook::set_once();
 
+    /*
     let future_tasks = async {
         let tasks = storage::dummy_tasks();
         storage::store_tasks(tasks).await.unwrap();
@@ -31,18 +32,15 @@ pub fn dummy_task_infos() -> Promise {    //Promise<Vec<task::JsTaskInfo>>
         let tasks_jsv = serde_wasm_bindgen::to_value(&tasks).unwrap();
         Ok(tasks_jsv)
     };
-
-    /*
-    let future_tasks = storage::store_tasks(tasks).and_then(|_|
-        storage::load_tasks()
-    ).map_ok(|tasks|
-        tasks.into_iter().map(|t| t.info().into()).collect()
-    ).map(|r|
-        r.and_then(|v: Vec<task::JsTaskInfo>|
-            serde_wasm_bindgen::to_value(&v).map_err(|e| e.to_string())
-        ).map_err(|e| JsValue::from(e))
-    );
     */
+
+    let future_tasks = async {
+        let tasks = storage::dummy_tasks();
+        let infos: Vec<JsTaskInfo> = join_all(
+            tasks.into_iter().map(|mut task| async move {task.run().await.into()})
+        ).await;
+        serde_wasm_bindgen::to_value(&infos).map_err(|e| JsValue::from_str(&e.to_string()))
+    };
 
     future_to_promise(future_tasks)
 }

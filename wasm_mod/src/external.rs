@@ -1,4 +1,3 @@
-use futures::executor::block_on;
 use serde::Serialize;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::{js_sys::Promise, JsFuture};
@@ -17,7 +16,7 @@ extern {
     fn open_working_tab(url: &str) -> Promise;
     fn close_tab(tab: JsValue) -> Promise;
     fn fetch_string_by_xpath(tab: &JsValue, xpath: &str) -> Promise;
-    fn add_to_reading_list(tab: &JsValue);
+    fn add_to_reading_list(tab: &JsValue) -> Promise;
 
     fn store_serialized(key: &str, value: &str) -> Promise;
     #[wasm_bindgen(js_name="load_serialized")]
@@ -38,18 +37,19 @@ pub async fn load_serialized(key: &str) -> Result<String, String> {
 
 pub struct Tab(JsValue);
 impl Tab {
-    pub fn open(url: &str) -> Self {
-        let jsv = block_on(JsFuture::from(open_working_tab(url)));
+    pub async fn open(url: &str) -> Self {
+        let jsv = JsFuture::from(open_working_tab(url)).await;
         Tab(jsv.unwrap())
     }
-    pub fn close(self) {
-        block_on(JsFuture::from(close_tab(self.0))).unwrap();
+    pub async fn close(self) {
+        JsFuture::from(close_tab(self.0)).await.unwrap();
     }
-    pub fn fetch_string_by_xpath(&self, xpath: &str) -> Result<String, String> {
-        let jsv = block_on(JsFuture::from(fetch_string_by_xpath(&self.0, xpath)));
+    pub async fn fetch_string_by_xpath(&self, xpath: &str) -> Result<String, String> {
+        let jsv = JsFuture::from(fetch_string_by_xpath(&self.0, xpath)).await;
         jsv.ok().and_then(|v| v.as_string()).ok_or(String::from("Failed to fetch."))
     }
-    pub fn add_to_reading_list(&self) {
-        add_to_reading_list(&self.0)
+    pub async fn add_to_reading_list(&self) {
+        JsFuture::from(add_to_reading_list(&self.0)).await.unwrap();
+        ()
     }
 }
