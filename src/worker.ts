@@ -1,23 +1,21 @@
+import {run_tasks} from 'wasm_mod';
 
-import {Task} from './Task'
-
-
-type Data = {
-    tasks: Task[],
-}
-
+chrome.alarms.onAlarm.addListener((alarm: chrome.alarms.Alarm) => {
+    if (alarm.name == "chron") {
+        chron();
+    }
+});
 async function chron() {
-    let now = Date.now();
-    let data = await chrome.storage.sync.get("chron") as Data;
-    let taskPromises = data.tasks.map(async task => {
-        if (task.nextRun && now < task.nextRun.getTime()) {
-            return task;
-        } else {
-            return await task.run();
-        }
-    });
-    let tasks = await Promise.all(taskPromises);
-    data.tasks = tasks;
-    chrome.storage.sync.set({"chron": data});
+    await run_tasks();
 }
 
+async function checkAlarmState() {
+    const alarm = await chrome.alarms.get("chron");
+    if (!alarm) {
+        await chrome.alarms.create(
+            "chron",
+            { periodInMinutes: 1 }
+        );
+    }
+}
+checkAlarmState();

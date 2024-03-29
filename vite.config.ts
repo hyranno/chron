@@ -2,7 +2,8 @@ import { defineConfig } from 'vite';
 import solidPlugin from 'vite-plugin-solid';
 import { crx } from '@crxjs/vite-plugin'
 import wasm from "vite-plugin-wasm";
-import manifest from './manifest.json'
+import topLevelAwait from "vite-plugin-top-level-await";
+import manifest from './manifest.json';
 // import devtools from 'solid-devtools/vite';
 
 export default defineConfig({
@@ -15,7 +16,13 @@ export default defineConfig({
     solidPlugin(),
     crx({ manifest }),
     wasm(),
+    topLevelAwait(),
   ],
+  worker: {
+    plugins: () => [
+      topLevelAwait(),
+    ],
+  },
   server: {
     port: 3000,
   },

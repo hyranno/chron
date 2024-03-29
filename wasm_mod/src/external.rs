@@ -48,8 +48,9 @@ impl Tab {
         let jsv = JsFuture::from(fetch_string_by_xpath(&self.0, xpath)).await;
         jsv.ok().and_then(|v| v.as_string()).ok_or(String::from("Failed to fetch."))
     }
-    pub async fn add_to_reading_list(&self) {
-        JsFuture::from(add_to_reading_list(&self.0)).await.unwrap();
-        ()
+    pub async fn add_to_reading_list(&self) -> Result<(), String> {
+        JsFuture::from(add_to_reading_list(&self.0)).await
+            .map(|_| ())
+            .map_err(|_| String::from("Failed to add to reading list."))
     }
 }

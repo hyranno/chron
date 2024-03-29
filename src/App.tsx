@@ -7,7 +7,7 @@ import { TaskStatus } from './Task';
 import * as wasm from 'wasm_mod';
 
 let [tasks, setTasks] = createSignal<[wasm.JsTaskInfo]>();
-wasm.dummy_task_infos().then((v) => setTasks(v));
+wasm.task_infos().then((v) => setTasks(v));
 
 const App: Component = () => {
   return (
