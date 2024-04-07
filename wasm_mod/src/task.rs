@@ -35,6 +35,7 @@ pub struct TaskInfo {
 
 #[enum_dispatch(TaskEnum)]
 pub trait Task {
+    async fn update(&mut self) -> TaskInfo;
     async fn run(&mut self) -> TaskInfo;
     fn info(&self) -> TaskInfo;
 }
@@ -71,12 +72,13 @@ impl Checker for ChangeChecker {
     async fn check(&mut self, tab: &Tab) -> Result<bool, String> {
         let fetch_res = tab.fetch_string_by_xpath(&self.xpath).await;
         fetch_res.map(|fetched| {
-            self.previous = Some(fetched.clone());
-            if let Some(prev) = self.previous.clone() {
-                prev == fetched
+            let res = if let Some(prev) = self.previous.clone() {
+                prev != fetched
             } else {
                 true
-            }
+            };
+            self.previous = Some(fetched.clone());
+            res
         })
     }
 }
@@ -137,6 +139,16 @@ impl WatchUpdateTask {
 impl Task for WatchUpdateTask {
     fn info(&self) -> TaskInfo {
         self.info.clone()
+    }
+    async fn update(&mut self) -> TaskInfo {
+        let is_scheduled = self.info().next_run.and_then(|next_run|
+            if Utc::now() < next_run {None} else {Some(())}
+        ).is_some();
+        if is_scheduled {
+            self.run().await
+        } else {
+            self.info()
+        }
     }
     async fn run(&mut self) -> TaskInfo {
         let tab = Tab::open(&self.url).await;

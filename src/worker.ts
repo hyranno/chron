@@ -1,4 +1,4 @@
-import {run_tasks} from 'wasm_mod';
+import {update_tasks} from 'wasm_mod';
 
 chrome.alarms.onAlarm.addListener((alarm: chrome.alarms.Alarm) => {
     if (alarm.name == "chron") {
@@ -6,7 +6,7 @@ chrome.alarms.onAlarm.addListener((alarm: chrome.alarms.Alarm) => {
     }
 });
 async function chron() {
-    await run_tasks();
+    await update_tasks();
 }
 
 async function checkAlarmState() {

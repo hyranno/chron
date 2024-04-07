@@ -35,11 +35,6 @@ export function add_to_reading_list(tab: chrome.tabs.Tab): Promise<void> {
 }
 
 
-export function util_alert() {
-    alert("util.alert");
-}
-
-
 export function store_serialized(key: string, value: string): Promise<void> {
     return chrome.storage.sync.set({[key]: value});
 }

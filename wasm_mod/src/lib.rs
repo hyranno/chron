@@ -1,4 +1,4 @@
-use futures::{future::join_all, Future, FutureExt, TryFutureExt};
+use futures::future::join_all;
 use wasm_bindgen::prelude::*;
 
 mod task;
@@ -35,15 +35,45 @@ pub fn task_infos() -> Promise {    //Promise<Vec<task::JsTaskInfo>>
 
 
 #[wasm_bindgen]
-pub fn run_tasks() -> Promise {    // Promise<void>
+pub fn update_tasks() -> Promise {    // Promise<void>
     console_error_panic_hook::set_once();
     let future_tasks = async {
-        let tasks = storage::dummy_tasks();
+        // let tasks = storage::dummy_tasks();
+        let tasks = storage::load_tasks().await
+            .map_err(|e| JsValue::from_str(&e))?
+        ;
         let tasks: Vec<TaskEnum> = join_all(
-            tasks.into_iter().map(|mut task| async move {task.run().await; task})
+            tasks.into_iter().map(|mut task| async move {task.update().await; task})
         ).await;
         let store_res = storage::store_tasks(tasks).await;
         store_res.map(|_| JsValue::null()).map_err(|e| JsValue::from_str(&e))
     };
     future_to_promise(future_tasks)
+}
+
+
+#[wasm_bindgen]
+pub fn load_tasks_json() -> Promise {     // Promise<string>
+    console_error_panic_hook::set_once();
+    let future_json = async {
+        storage::load_tasks().await.and_then(|tasks| {
+            serde_json::to_string(&tasks).map_err(|e| e.to_string())
+        }).map(|s| JsValue::from_str(&s)).map_err(|s| JsValue::from_str(&s))
+    };
+    future_to_promise(future_json)
+}
+
+#[wasm_bindgen]
+pub fn store_tasks_json(json_str: String) -> Promise {     // Promise<void>
+    console_error_panic_hook::set_once();
+    let tasks: Result<Vec<TaskEnum>, String> = serde_json::from_str(&json_str).map_err(|e| e.to_string());
+    let future_result = async {
+        let store_res = if let Ok(tasks) = tasks {
+            storage::store_tasks(tasks).await
+        } else {
+            Err(tasks.err().unwrap())
+        };
+        store_res.map(|_| JsValue::null()).map_err(|s| JsValue::from_str(&s))
+    };
+    future_to_promise(future_result)
 }
