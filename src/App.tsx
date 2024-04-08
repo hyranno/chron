@@ -9,6 +9,10 @@ import * as wasm from 'wasm_mod';
 let [tasks, setTasks] = createSignal<[wasm.JsTaskInfo]>();
 wasm.task_infos().then((v) => setTasks(v));
 
+chrome.storage.onChanged.addListener((_event, _namespace) => {
+  wasm.task_infos().then((v) => setTasks(v));
+});
+
 const App: Component = () => {
   return (
     <div class={styles.App}>

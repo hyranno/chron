@@ -26,6 +26,11 @@ function store_tasks() {
 let [tasks, setTasks] = createSignal<string>();
 wasm.load_tasks_json().then((v) => setTasks(v));
 
+chrome.storage.onChanged.addListener((_event, _namespace) => {
+  wasm.load_tasks_json().then((v) => setTasks(v));
+});
+
+
 const Options: Component = () => {
   return (
     <div>
