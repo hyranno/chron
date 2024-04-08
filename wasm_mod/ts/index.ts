@@ -36,10 +36,10 @@ export function add_to_reading_list(tab: chrome.tabs.Tab): Promise<void> {
 
 
 export function store_serialized(key: string, value: string): Promise<void> {
-    return chrome.storage.sync.set({[key]: value});
+    return chrome.storage.local.set({[key]: value});
 }
 export function load_serialized(key: string): Promise<string> {
-    return chrome.storage.sync.get([key])
+    return chrome.storage.local.get([key])
         .then((val) => {return val[key]}
     );
 }
