@@ -10,7 +10,7 @@ export const TaskStatus: Component<wasm.JsTaskInfo> = (props) => {
                 last result: {props.last_result? props.last_result! : props.err? props.err! : "-"}
             </div>
             <div class={styles.next}>
-                next: {props.next_run? props.next_run! : "-"}
+                next: {props.next_run? (new Date(props.next_run!)).toLocaleString() : "-"}
             </div>
         </div>
     );

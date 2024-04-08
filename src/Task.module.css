@@ -1,6 +1,7 @@
 
 .TaskStatus {
     width: auto;
+    border: thin solid #444444;
 }
 
 .Ok {
