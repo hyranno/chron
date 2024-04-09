@@ -14,8 +14,18 @@ if (import.meta.env.DEV && !(root instanceof HTMLElement)) {
 }
 
 
-function store_tasks() {
-  let json_str = (document.getElementById("json_input")! as HTMLTextAreaElement).value;
+async function getTasksJSON() {
+  let json_str = await wasm.load_tasks_json();
+  let url = URL.createObjectURL(new Blob([json_str]));
+  let a = document.createElement('a');
+  a.href = url;
+  a.download = "chron_tasks.json";
+  a.click();
+}
+
+async function storeTasksJSON() {
+  let file = (document.getElementById("json_file") as HTMLInputElement).files![0];
+  let json_str = await file.text();
   wasm.store_tasks_json(json_str)
     .then((_) => alert("saved!"))
     .catch((e) => {alert("something wrong"); console.log(e)})
@@ -23,20 +33,12 @@ function store_tasks() {
 }
 
 
-let [tasks, setTasks] = createSignal<string>();
-wasm.load_tasks_json().then((v) => setTasks(v));
-
-chrome.storage.onChanged.addListener((_event, _namespace) => {
-  wasm.load_tasks_json().then((v) => setTasks(v));
-});
-
 
 const Options: Component = () => {
   return (
     <div>
-      <textarea id="loaded_tasks" readonly>{tasks()}</textarea>
-      <textarea id="json_input"></textarea>
-      <button id="store_tasks" onclick={store_tasks}>save</button>
+      <button id="download_json" onclick={getTasksJSON}>Get Tasks JSON</button>
+      <input id="json_file" onchange={storeTasksJSON} type="file" accept="application/json" name="Store Tasks JSON" />
     </div>
   );
 };
