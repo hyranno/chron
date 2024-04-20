@@ -1,3 +1,4 @@
+use async_recursion::async_recursion;
 use serde::Serialize;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::{js_sys::Promise, JsFuture};
@@ -47,6 +48,13 @@ impl Tab {
     pub async fn fetch_string_by_xpath(&self, xpath: &str) -> Result<String, String> {
         let jsv = JsFuture::from(fetch_string_by_xpath(&self.0, xpath)).await;
         jsv.ok().and_then(|v| v.as_string()).ok_or(String::from("Failed to fetch."))
+    }
+    #[async_recursion(?Send)]
+    pub async fn fetch_string_by_xpath_w_retry(&self, xpath: &String, count: usize) -> Result<String, String> {
+        let fetch_res = self.fetch_string_by_xpath(xpath).await;
+        if count < 10 && fetch_res.is_err() || fetch_res == Ok(String::new()) {
+            self.fetch_string_by_xpath_w_retry(xpath, count+1).await
+        } else {fetch_res}
     }
     pub async fn add_to_reading_list(&self) -> Result<(), String> {
         JsFuture::from(add_to_reading_list(&self.0)).await

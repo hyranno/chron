@@ -70,7 +70,7 @@ impl ChangeChecker {
 }
 impl Checker for ChangeChecker {
     async fn check(&mut self, tab: &Tab) -> Result<bool, String> {
-        let fetch_res = tab.fetch_string_by_xpath(&self.xpath).await;
+        let fetch_res = tab.fetch_string_by_xpath_w_retry(&self.xpath, 0).await;
         fetch_res.map(|fetched| {
             let res = if let Some(prev) = self.previous.clone() {
                 prev != fetched
