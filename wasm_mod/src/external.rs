@@ -52,7 +52,7 @@ impl Tab {
     #[async_recursion(?Send)]
     pub async fn fetch_string_by_xpath_w_retry(&self, xpath: &String, count: usize) -> Result<String, String> {
         let fetch_res = self.fetch_string_by_xpath(xpath).await;
-        if count < 10 && fetch_res.is_err() || fetch_res == Ok(String::new()) {
+        if count < 10 && (fetch_res.is_err() || fetch_res == Ok(String::new())) {
             self.fetch_string_by_xpath_w_retry(xpath, count+1).await
         } else {fetch_res}
     }
