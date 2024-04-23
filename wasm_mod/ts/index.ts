@@ -26,11 +26,11 @@ export function fetch_string_by_xpath(tab: chrome.tabs.Tab, xpath: string): Prom
     });
 }
 
-export function add_to_reading_list(tab: chrome.tabs.Tab): Promise<void> {
+export function add_to_reading_list(tab: chrome.tabs.Tab, title: String): Promise<void> {
     return chrome.readingList.addEntry({
         url: tab.url || tab.pendingUrl,
         hasBeenRead: false,
-        title: tab.title!,
+        title: title,
     });
 }
 

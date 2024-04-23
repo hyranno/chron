@@ -159,7 +159,7 @@ impl Task for WatchUpdateTask {
         if let Ok(pass_check) = check_res {
             if pass_check {
                 #[allow(unused_must_use)]
-                {tab.add_to_reading_list().await;}  // May fail if the entry exists.
+                {tab.add_to_reading_list(&self.info.name).await;}  // May fail if the entry exists.
             };
             self.info.next_run = Some(self.planner.next(&tab).await);
         }

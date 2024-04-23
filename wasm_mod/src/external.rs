@@ -17,7 +17,7 @@ extern {
     fn open_working_tab(url: &str) -> Promise;
     fn close_tab(tab: JsValue) -> Promise;
     fn fetch_string_by_xpath(tab: &JsValue, xpath: &str) -> Promise;
-    fn add_to_reading_list(tab: &JsValue) -> Promise;
+    fn add_to_reading_list(tab: &JsValue, title: &str) -> Promise;
 
     fn store_serialized(key: &str, value: &str) -> Promise;
     #[wasm_bindgen(js_name="load_serialized")]
@@ -57,8 +57,8 @@ impl Tab {
             self.fetch_string_by_xpath_w_retry(xpath, count+1).await
         } else {fetch_res}
     }
-    pub async fn add_to_reading_list(&self) -> Result<(), String> {
-        JsFuture::from(add_to_reading_list(&self.0)).await
+    pub async fn add_to_reading_list(&self, title: &str) -> Result<(), String> {
+        JsFuture::from(add_to_reading_list(&self.0, title)).await
             .map(|_| ())
             .map_err(|_| String::from("Failed to add to reading list."))
     }
