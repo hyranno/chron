@@ -12,6 +12,9 @@ export const TaskStatus: Component<wasm.JsTaskInfo> = (props) => {
             <div class={styles.next}>
                 next: {props.next_run? (new Date(props.next_run!)).toLocaleString() : "-"}
             </div>
+            <div class={styles.actions}>
+                <button class="run" onClick={() => wasm.run_task(props.name)}>Run</button>
+            </div>
         </div>
     );
 }

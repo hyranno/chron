@@ -77,3 +77,18 @@ pub fn store_tasks_json(json_str: String) -> Promise {     // Promise<void>
     };
     future_to_promise(future_result)
 }
+
+#[wasm_bindgen]
+pub fn run_task(name: String) -> Promise {
+    console_error_panic_hook::set_once();
+    let future_tasks = async move {
+        let mut tasks = storage::load_tasks().await
+            .map_err(|e| JsValue::from_str(&e))?
+        ;
+        let task = tasks.iter_mut().find(|t| t.info().name == name).ok_or(JsValue::from_str("invalid name"))?;
+        task.run().await;
+        let store_res = storage::store_tasks(tasks).await;
+        store_res.map(|_| JsValue::null()).map_err(|e| JsValue::from_str(&e))
+    };
+    future_to_promise(future_tasks)
+}
