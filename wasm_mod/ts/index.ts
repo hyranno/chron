@@ -17,12 +17,14 @@ export function fetch_string_by_xpath(tab: chrome.tabs.Tab, xpath: string): Prom
     return chrome.scripting.executeScript({
         target: {tabId: tab.id!, frameIds: [0]},
         func: (xpath: string) => {
-            let xpres = document.evaluate(xpath, document);
-            return xpres.stringValue;
+            let node = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE).singleNodeValue;
+            let str = document.evaluate(`string(${xpath})`, document, null, XPathResult.STRING_TYPE).stringValue;
+            let value = node ? str : null;
+            return value;
         },
         args: [xpath],
     }).then(injectionResults => {
-       return injectionResults[0].result;
+        return injectionResults[0].result;
     });
 }
 
