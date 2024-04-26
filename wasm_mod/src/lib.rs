@@ -1,7 +1,7 @@
 use futures::future::join_all;
 use wasm_bindgen::prelude::*;
 
-mod task;
+pub mod task;
 mod storage;
 mod external;
 
