@@ -17,7 +17,7 @@ extern {
     fn open_working_tab(url: &str) -> Promise;
     fn close_tab(tab: JsValue) -> Promise;
     fn fetch_string_by_xpath(tab: &JsValue, xpath: &str) -> Promise;
-    #[wasm_bindgen(js_name="load_serialized")]
+    #[wasm_bindgen(js_name="add_to_reading_list")]
     fn add_to_reading_list_js(url: &str, title: &str) -> Promise;
 
     fn store_serialized(key: &str, value: &str) -> Promise;

@@ -1,5 +1,6 @@
 
 use chrono::{DateTime, TimeDelta, Utc};
+use futures::Future;
 use serde::{Deserialize, Serialize};
 use enum_dispatch::enum_dispatch;
 use wasm_bindgen::prelude::*;
@@ -35,42 +36,46 @@ pub struct TaskInfo {
 
 #[enum_dispatch(TaskEnum)]
 pub trait Task {
-    async fn update(&mut self) -> TaskInfo;
-    async fn run(&mut self) -> TaskInfo;
+    fn update(&mut self) -> impl Future<Output = TaskInfo>;
+    fn run(&mut self) -> impl Future<Output = TaskInfo>;
     fn info(&self) -> TaskInfo;
 }
 #[enum_dispatch]
 #[derive(Serialize, Deserialize)]
 pub enum TaskEnum {
-    WatchUpdateTask,
+    ConditionalTask,
 }
 
-#[enum_dispatch(CheckerEnum)]
+#[enum_dispatch(ConditionEnum)]
 pub trait Checker {
-    async fn check(&mut self, tab: &Tab) -> Result<bool, String>;
+    fn check(&mut self) -> impl Future<Output = Result<bool, String>>;
 }
 #[enum_dispatch]
 #[derive(Serialize, Deserialize)]
-pub enum CheckerEnum {
-    ChangeChecker,
+pub enum ConditionEnum {
+    ChangeCondition,
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct ChangeChecker {
+pub struct ChangeCondition {
+    url: String,
     xpath: String,
     previous: Option<String>,
 }
-impl ChangeChecker {
-    pub fn new(xpath: &str) -> Self {
+impl ChangeCondition {
+    pub fn new(url: &str, xpath: &str) -> Self {
         Self {
+            url: String::from(url),
             xpath: String::from(xpath),
             previous: None,
         }
     }
 }
-impl Checker for ChangeChecker {
-    async fn check(&mut self, tab: &Tab) -> Result<bool, String> {
+impl Checker for ChangeCondition {
+    async fn check(&mut self) -> Result<bool, String> {
+        let tab = Tab::open(&self.url).await;
         let fetch_res = tab.fetch_string_by_xpath_w_retry(&self.xpath, 0).await;
+        tab.close().await;
         fetch_res.map(|fetched| {
             let res = if let Some(prev) = self.previous.clone() {
                 prev != fetched
@@ -83,29 +88,29 @@ impl Checker for ChangeChecker {
     }
 }
 
-#[enum_dispatch(PlannerEnum)]
+#[enum_dispatch(SchedulerEnum)]
 pub trait Planner {
-    async fn next(&mut self, tab: &Tab) -> DateTime<Utc>;
+    fn next(&mut self) -> impl Future<Output = DateTime<Utc>>;
 }
 #[enum_dispatch]
 #[derive(Serialize, Deserialize)]
-pub enum PlannerEnum {
-    IntervalPlanner,
+pub enum SchedulerEnum {
+    IntervalScheduler,
 }
 
 
 #[derive(Serialize, Deserialize)]
-pub struct IntervalPlanner {
+pub struct IntervalScheduler {
     interval_seconds: i64,  // TimeDelta is not Serializable
     previous: Option<DateTime<Utc>>,
 }
-impl IntervalPlanner {
+impl IntervalScheduler {
     pub fn new(interval: TimeDelta) -> Self {
         Self { interval_seconds: interval.num_seconds(), previous: None }
     }
 }
-impl Planner for IntervalPlanner {
-    async fn next(&mut self, _tab: &Tab) -> DateTime<Utc> {
+impl Planner for IntervalScheduler {
+    async fn next(&mut self) -> DateTime<Utc> {
         let previous = self.previous.unwrap_or(Utc::now());
         let delay = Utc::now() - previous;
         let interval = TimeDelta::try_seconds(self.interval_seconds).unwrap();
@@ -121,7 +126,7 @@ impl Planner for IntervalPlanner {
 
 #[enum_dispatch(ActionEnum)]
 pub trait Action {
-    async fn run(&mut self) -> Result<(), String>;
+    fn run(&mut self) -> impl Future<Output = Result<(), String>>;
 }
 #[enum_dispatch]
 #[derive(Serialize, Deserialize)]
@@ -135,8 +140,8 @@ pub struct AddReadingListAction {
     title: String,
 }
 impl AddReadingListAction {
-    pub fn new(url: String, title: String) -> Self {
-        Self { url, title }
+    pub fn new(url: &str, title: &str) -> Self {
+        Self { url: String::from(url), title: String::from(title) }
     }
 }
 impl Action for AddReadingListAction {
@@ -150,25 +155,29 @@ impl Action for AddReadingListAction {
 
 
 #[derive(Serialize, Deserialize)]
-pub struct WatchUpdateTask {
-    url: String,
-    checker: CheckerEnum,
-    planner: PlannerEnum,
+pub struct ConditionalTask {
+    checker: ConditionEnum,
+    planner: SchedulerEnum,
     action: ActionEnum,
     info: TaskInfo,
 }
-impl WatchUpdateTask {
-    pub fn new(name: &str, next_run: Option<DateTime<Utc>>, url: &str, checker: impl Into<CheckerEnum>, planner: impl Into<PlannerEnum>) -> Self {
+impl ConditionalTask {
+    pub fn new(
+        name: &str,
+        next_run: Option<DateTime<Utc>>,
+        checker: impl Into<ConditionEnum>,
+        planner: impl Into<SchedulerEnum>,
+        action: impl Into<ActionEnum>,
+    ) -> Self {
         Self {
-            url: String::from(url),
             checker: checker.into(),
             planner: planner.into(),
-            action: AddReadingListAction::new(String::from(url), String::from(name)).into(),
+            action: action.into(),
             info: TaskInfo { name: String::from(name), next_run, last_result: None }
         }
     }
 }
-impl Task for WatchUpdateTask {
+impl Task for ConditionalTask {
     fn info(&self) -> TaskInfo {
         self.info.clone()
     }
@@ -183,18 +192,18 @@ impl Task for WatchUpdateTask {
         }
     }
     async fn run(&mut self) -> TaskInfo {
-        let tab = Tab::open(&self.url).await;
-        let check_res = self.checker.check(&tab).await;
-        self.info.last_result = Some(check_res.clone().map(|updated| String::from(
-            if updated {"updated"} else {"no update"}
-        )));
-        if let Ok(pass_check) = check_res {
-            if pass_check {
-                self.action.run();
-            };
-            self.info.next_run = Some(self.planner.next(&tab).await);
-        }
-        tab.close().await;
+        let cond_res = self.checker.check().await;
+        self.info.last_result = Some(match cond_res {
+            Err(e) => Err(e),
+            Ok(false) => Ok(String::from("condition mismatch")),
+            Ok(true) => {
+                let action_res = self.action.run().await;
+                if action_res.is_ok() {
+                    self.info.next_run = Some(self.planner.next().await);
+                }
+                action_res.map(|_| String::from("run"))
+            },
+        });
         self.info()
     }
 }
