@@ -17,13 +17,20 @@ extern {
     fn open_working_tab(url: &str) -> Promise;
     fn close_tab(tab: JsValue) -> Promise;
     fn fetch_string_by_xpath(tab: &JsValue, xpath: &str) -> Promise;
-    fn add_to_reading_list(tab: &JsValue, title: &str) -> Promise;
+    #[wasm_bindgen(js_name="load_serialized")]
+    fn add_to_reading_list_js(url: &str, title: &str) -> Promise;
 
     fn store_serialized(key: &str, value: &str) -> Promise;
     #[wasm_bindgen(js_name="load_serialized")]
     fn load_serialized_jsv(key: &str) -> Promise;
 
     pub fn util_alert();
+}
+
+pub async fn add_to_reading_list(url: &str, title: &str) -> Result<(), String> {
+    JsFuture::from(add_to_reading_list_js(url, title)).await
+        .map(|_| ())
+        .map_err(|_| String::from("Failed to add to reading list."))
 }
 
 pub async fn store(key: &str, value: &impl Serialize) -> Result<(), String> {
@@ -56,10 +63,5 @@ impl Tab {
             async_std::task::sleep(std::time::Duration::from_secs_f32(0.5)).await;
             self.fetch_string_by_xpath_w_retry(xpath, count+1).await
         } else {fetch_res}
-    }
-    pub async fn add_to_reading_list(&self, title: &str) -> Result<(), String> {
-        JsFuture::from(add_to_reading_list(&self.0, title)).await
-            .map(|_| ())
-            .map_err(|_| String::from("Failed to add to reading list."))
     }
 }

@@ -119,11 +119,42 @@ impl Planner for IntervalPlanner {
 }
 
 
+#[enum_dispatch(ActionEnum)]
+pub trait Action {
+    async fn run(&mut self) -> Result<(), String>;
+}
+#[enum_dispatch]
+#[derive(Serialize, Deserialize)]
+pub enum ActionEnum {
+    AddReadingListAction,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct AddReadingListAction {
+    url: String,
+    title: String,
+}
+impl AddReadingListAction {
+    pub fn new(url: String, title: String) -> Self {
+        Self { url, title }
+    }
+}
+impl Action for AddReadingListAction {
+    async fn run(&mut self) -> Result<(),String> {
+        #[allow(unused_must_use)]
+        {crate::external::add_to_reading_list(&self.url, &self.title).await;}  // May fail if the entry exists.
+        Ok(())
+    }
+}
+
+
+
 #[derive(Serialize, Deserialize)]
 pub struct WatchUpdateTask {
     url: String,
     checker: CheckerEnum,
     planner: PlannerEnum,
+    action: ActionEnum,
     info: TaskInfo,
 }
 impl WatchUpdateTask {
@@ -132,6 +163,7 @@ impl WatchUpdateTask {
             url: String::from(url),
             checker: checker.into(),
             planner: planner.into(),
+            action: AddReadingListAction::new(String::from(url), String::from(name)).into(),
             info: TaskInfo { name: String::from(name), next_run, last_result: None }
         }
     }
@@ -158,8 +190,7 @@ impl Task for WatchUpdateTask {
         )));
         if let Ok(pass_check) = check_res {
             if pass_check {
-                #[allow(unused_must_use)]
-                {tab.add_to_reading_list(&self.info.name).await;}  // May fail if the entry exists.
+                self.action.run();
             };
             self.info.next_run = Some(self.planner.next(&tab).await);
         }
