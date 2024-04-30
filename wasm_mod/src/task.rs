@@ -192,18 +192,15 @@ impl Task for ConditionalTask {
         }
     }
     async fn run(&mut self) -> TaskInfo {
-        let cond_res = self.checker.check().await;
-        self.info.last_result = Some(match cond_res {
+        let res = match self.checker.check().await {
             Err(e) => Err(e),
             Ok(false) => Ok(String::from("condition mismatch")),
-            Ok(true) => {
-                let action_res = self.action.run().await;
-                if action_res.is_ok() {
-                    self.info.next_run = Some(self.planner.next().await);
-                }
-                action_res.map(|_| String::from("run"))
-            },
-        });
+            Ok(true) => self.action.run().await.map(|_| String::from("run")),
+        };
+        if res.is_ok() {
+            self.info.next_run = Some(self.planner.next().await);
+        }
+        self.info.last_result = Some(res);
         self.info()
     }
 }
