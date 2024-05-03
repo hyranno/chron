@@ -47,7 +47,7 @@ pub enum TaskEnum {
 }
 
 #[enum_dispatch(ConditionEnum)]
-pub trait Checker {
+pub trait Condition {
     fn check(&mut self) -> impl Future<Output = Result<bool, String>>;
 }
 #[enum_dispatch]
@@ -71,7 +71,7 @@ impl ChangeCondition {
         }
     }
 }
-impl Checker for ChangeCondition {
+impl Condition for ChangeCondition {
     async fn check(&mut self) -> Result<bool, String> {
         let tab = Tab::open(&self.url).await;
         let fetch_res = tab.fetch_string_by_xpath_w_retry(&self.xpath, 0).await;
@@ -89,7 +89,7 @@ impl Checker for ChangeCondition {
 }
 
 #[enum_dispatch(SchedulerEnum)]
-pub trait Planner {
+pub trait Scheduler {
     fn next(&mut self) -> impl Future<Output = DateTime<Utc>>;
 }
 #[enum_dispatch]
@@ -109,7 +109,7 @@ impl IntervalScheduler {
         Self { interval_seconds: interval.num_seconds(), previous: None }
     }
 }
-impl Planner for IntervalScheduler {
+impl Scheduler for IntervalScheduler {
     async fn next(&mut self) -> DateTime<Utc> {
         let previous = self.previous.unwrap_or(Utc::now());
         let delay = Utc::now() - previous;
@@ -156,8 +156,8 @@ impl Action for AddReadingListAction {
 
 #[derive(Serialize, Deserialize)]
 pub struct ConditionalTask {
-    checker: ConditionEnum,
-    planner: SchedulerEnum,
+    condition: ConditionEnum,
+    scheduler: SchedulerEnum,
     action: ActionEnum,
     info: TaskInfo,
 }
@@ -165,13 +165,13 @@ impl ConditionalTask {
     pub fn new(
         name: &str,
         next_run: Option<DateTime<Utc>>,
-        checker: impl Into<ConditionEnum>,
-        planner: impl Into<SchedulerEnum>,
+        condition: impl Into<ConditionEnum>,
+        scheculer: impl Into<SchedulerEnum>,
         action: impl Into<ActionEnum>,
     ) -> Self {
         Self {
-            checker: checker.into(),
-            planner: planner.into(),
+            condition: condition.into(),
+            scheduler: scheculer.into(),
             action: action.into(),
             info: TaskInfo { name: String::from(name), next_run, last_result: None }
         }
@@ -192,13 +192,13 @@ impl Task for ConditionalTask {
         }
     }
     async fn run(&mut self) -> TaskInfo {
-        let res = match self.checker.check().await {
+        let res = match self.condition.check().await {
             Err(e) => Err(e),
             Ok(false) => Ok(String::from("condition mismatch")),
             Ok(true) => self.action.run().await.map(|_| String::from("run")),
         };
         if res.is_ok() {
-            self.info.next_run = Some(self.planner.next().await);
+            self.info.next_run = Some(self.scheduler.next().await);
         }
         self.info.last_result = Some(res);
         self.info()

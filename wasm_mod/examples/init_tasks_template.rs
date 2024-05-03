@@ -1,4 +1,5 @@
-use wasm_mod::task::TaskEnum;
+use chrono::TimeDelta;
+use wasm_mod::task::{AddReadingListAction, ChangeCondition, ConditionalTask, IntervalScheduler, TaskEnum};
 
 use clap::Parser;
 
@@ -12,6 +13,13 @@ struct Args {
 fn main() {
     let tasks: Vec<TaskEnum> = vec![
         // Your tasks here
+        ConditionalTask::new(
+            "name",
+            None,
+            ChangeCondition::new("https://", "(//a)[1]/@href"),
+            IntervalScheduler::new(TimeDelta::try_weeks(1).unwrap()),
+            AddReadingListAction::new("https://", "name"),
+        ).into(),
     ];
     let serialized = serde_json::to_string(&tasks).map_err(|e| e.to_string()).unwrap();
 
