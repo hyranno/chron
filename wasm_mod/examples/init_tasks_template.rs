@@ -1,5 +1,13 @@
 use chrono::TimeDelta;
-use wasm_mod::task::{AddReadingListAction, AlwaysCondition, ChangeCondition, ConditionalTask, IntervalScheduler, OneTimeScheduler, TaskEnum};
+use wasm_mod::task::{
+    TaskEnum,
+    conditional::{
+        ConditionalTask,
+        action::AddReadingList,
+        condition::{Always, Changed,},
+        scheduler::{Interval, OneTime,},
+    },
+};
 
 use clap::Parser;
 
@@ -16,16 +24,16 @@ fn main() {
         ConditionalTask::new(
             "name",
             None,
-            ChangeCondition::new("https://", "(//a)[1]/@href"),
-            IntervalScheduler::new(TimeDelta::try_weeks(1).unwrap()),
-            AddReadingListAction::new("https://", "name"),
+            Changed::new("https://", "(//a)[1]/@href"),
+            Interval::new(TimeDelta::try_weeks(1).unwrap()),
+            AddReadingList::new("https://", "name"),
         ).into(),
         ConditionalTask::new(
             "name",
             None,
-            AlwaysCondition{},
-            OneTimeScheduler{},
-            AddReadingListAction::new("https://", "name"),
+            Always{},
+            OneTime{},
+            AddReadingList::new("https://", "name"),
         ).into(),
     ];
     let serialized = serde_json::to_string(&tasks).map_err(|e| e.to_string()).unwrap();
