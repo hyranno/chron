@@ -57,6 +57,14 @@ pub enum ConditionEnum {
 }
 
 #[derive(Serialize, Deserialize)]
+pub struct AlwaysCondition {}
+impl Condition for AlwaysCondition {
+    async fn check(&mut self) -> Result<bool,String> {
+        Ok(true)
+    }
+}
+
+#[derive(Serialize, Deserialize)]
 pub struct ChangeCondition {
     url: String,
     xpath: String,
