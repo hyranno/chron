@@ -1,5 +1,5 @@
 use chrono::TimeDelta;
-use wasm_mod::task::{AddReadingListAction, ChangeCondition, ConditionalTask, IntervalScheduler, TaskEnum};
+use wasm_mod::task::{AddReadingListAction, AlwaysCondition, ChangeCondition, ConditionalTask, IntervalScheduler, OneTimeScheduler, TaskEnum};
 
 use clap::Parser;
 
@@ -18,6 +18,13 @@ fn main() {
             None,
             ChangeCondition::new("https://", "(//a)[1]/@href"),
             IntervalScheduler::new(TimeDelta::try_weeks(1).unwrap()),
+            AddReadingListAction::new("https://", "name"),
+        ).into(),
+        ConditionalTask::new(
+            "name",
+            None,
+            AlwaysCondition{},
+            OneTimeScheduler{},
             AddReadingListAction::new("https://", "name"),
         ).into(),
     ];

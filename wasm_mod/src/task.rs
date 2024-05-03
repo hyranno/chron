@@ -53,6 +53,7 @@ pub trait Condition {
 #[enum_dispatch]
 #[derive(Serialize, Deserialize)]
 pub enum ConditionEnum {
+    AlwaysCondition,
     ChangeCondition,
 }
 
@@ -98,14 +99,22 @@ impl Condition for ChangeCondition {
 
 #[enum_dispatch(SchedulerEnum)]
 pub trait Scheduler {
-    fn next(&mut self) -> impl Future<Output = DateTime<Utc>>;
+    fn next(&mut self) -> impl Future<Output = Option<DateTime<Utc>>>;
 }
 #[enum_dispatch]
 #[derive(Serialize, Deserialize)]
 pub enum SchedulerEnum {
+    OneTimeScheduler,
     IntervalScheduler,
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct OneTimeScheduler {}
+impl Scheduler for OneTimeScheduler {
+    async fn next(&mut self) -> Option<DateTime<Utc>> {
+        None
+    }
+}
 
 #[derive(Serialize, Deserialize)]
 pub struct IntervalScheduler {
@@ -118,7 +127,7 @@ impl IntervalScheduler {
     }
 }
 impl Scheduler for IntervalScheduler {
-    async fn next(&mut self) -> DateTime<Utc> {
+    async fn next(&mut self) -> Option<DateTime<Utc>> {
         let previous = self.previous.unwrap_or(Utc::now());
         let delay = Utc::now() - previous;
         let interval = TimeDelta::try_seconds(self.interval_seconds).unwrap();
@@ -127,7 +136,7 @@ impl Scheduler for IntervalScheduler {
             next += interval;
         }
         self.previous = Some(next);
-        next
+        Some(next)
     }
 }
 
@@ -206,7 +215,7 @@ impl Task for ConditionalTask {
             Ok(true) => self.action.run().await.map(|_| String::from("run")),
         };
         if res.is_ok() {
-            self.info.next_run = Some(self.scheduler.next().await);
+            self.info.next_run = self.scheduler.next().await;
         }
         self.info.last_result = Some(res);
         self.info()
