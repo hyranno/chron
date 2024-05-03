@@ -7,6 +7,14 @@ use wasm_bindgen::prelude::*;
 
 use crate::external::Tab;
 
+/*
+ * Naive json cant hold the type and `Box<dyn Trait>` cannot be handled.
+ * `typetag` or `enum_dispatch` can add type info to json.
+ * `typetag` does not work with wasm.
+ * `enum_dispatch` does not work with fn returning `impl Trait` for now. (https://gitlab.com/antonok/enum_dispatch/-/issues/75)
+ * So, write `enum_dispatch` by hands.
+ */
+
 #[wasm_bindgen(getter_with_clone)]
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct JsTaskInfo {
@@ -46,16 +54,26 @@ pub enum TaskEnum {
     ConditionalTask,
 }
 
-#[enum_dispatch(ConditionEnum)]
+// #[enum_dispatch(ConditionEnum)]
 pub trait Condition {
     fn check(&mut self) -> impl Future<Output = Result<bool, String>>;
 }
-#[enum_dispatch]
+// #[enum_dispatch]
 #[derive(Serialize, Deserialize)]
 pub enum ConditionEnum {
-    AlwaysCondition,
-    ChangeCondition,
+    AlwaysCondition(AlwaysCondition),
+    ChangeCondition(ChangeCondition),
 }
+impl Condition for ConditionEnum {
+    async fn check(&mut self) -> Result<bool, String> {
+        match self {
+            Self::AlwaysCondition(value) => value.check().await,
+            Self::ChangeCondition(value) => value.check().await,
+        }
+    }
+}
+impl From<AlwaysCondition> for ConditionEnum {fn from(value: AlwaysCondition) -> Self { Self::AlwaysCondition(value) }}
+impl From<ChangeCondition> for ConditionEnum {fn from(value: ChangeCondition) -> Self { Self::ChangeCondition(value) }}
 
 #[derive(Serialize, Deserialize)]
 pub struct AlwaysCondition {}
@@ -97,16 +115,26 @@ impl Condition for ChangeCondition {
     }
 }
 
-#[enum_dispatch(SchedulerEnum)]
+// #[enum_dispatch(SchedulerEnum)]
 pub trait Scheduler {
     fn next(&mut self) -> impl Future<Output = Option<DateTime<Utc>>>;
 }
-#[enum_dispatch]
+// #[enum_dispatch]
 #[derive(Serialize, Deserialize)]
 pub enum SchedulerEnum {
-    OneTimeScheduler,
-    IntervalScheduler,
+    OneTimeScheduler(OneTimeScheduler),
+    IntervalScheduler(IntervalScheduler),
 }
+impl Scheduler for SchedulerEnum {
+    async fn next(&mut self) -> Option<DateTime<Utc>> {
+        match self {
+            Self::OneTimeScheduler(value) => value.next().await,
+            Self::IntervalScheduler(value) => value.next().await,
+        }        
+    }
+}
+impl From<OneTimeScheduler> for SchedulerEnum {fn from(value: OneTimeScheduler) -> Self {Self::OneTimeScheduler(value)}}
+impl From<IntervalScheduler> for SchedulerEnum {fn from(value: IntervalScheduler) -> Self {Self::IntervalScheduler(value)}}
 
 #[derive(Serialize, Deserialize)]
 pub struct OneTimeScheduler {}
