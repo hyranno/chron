@@ -56,9 +56,7 @@ pub fn update_tasks() -> Promise {    // Promise<void>
 pub fn load_tasks_json() -> Promise {     // Promise<string>
     console_error_panic_hook::set_once();
     let future_json = async {
-        storage::load_tasks().await.and_then(|tasks| {
-            serde_json::to_string(&tasks).map_err(|e| e.to_string())
-        }).map(|s| JsValue::from_str(&s)).map_err(|s| JsValue::from_str(&s))
+        storage::load_serialized_tasks().await.map(|s| JsValue::from_str(&s)).map_err(|s| JsValue::from_str(&s))
     };
     future_to_promise(future_json)
 }
