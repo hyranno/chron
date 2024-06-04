@@ -79,9 +79,13 @@ pub fn store_tasks_json(json_str: String) -> Promise {     // Promise<void>
 #[wasm_bindgen]
 pub fn run_task(name: String) -> Promise {
     console_error_panic_hook::set_once();
-    let future_tasks = modify_task(name, |task| {async{task.run().await};})
-        .map(|r| r.map(|_| JsValue::null()).map_err(|e| JsValue::from_str(&e)))
-    ;
+    let future_tasks = async move {
+        let mut tasks = storage::load_tasks().await?;
+        let task = tasks.iter_mut().find(|t| t.info().name == name).ok_or(String::from("invalid name"))?;
+        task.run().await;
+        let store_res = storage::store_tasks(tasks).await;
+        store_res
+    }.map(|r| r.map(|_| JsValue::null()).map_err(|e| JsValue::from_str(&e)));
     future_to_promise(future_tasks)
 }
 
