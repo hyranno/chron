@@ -61,4 +61,7 @@ impl Task for ConditionalTask {
         self.info.last_result = Some(res);
         self.info()
     }
+    fn unset(&mut self) {
+        self.info.next_run = None;
+    }
 }

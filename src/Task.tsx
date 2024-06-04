@@ -14,6 +14,7 @@ export const TaskStatus: Component<wasm.JsTaskInfo> = (props) => {
             </div>
             <div class={styles.actions}>
                 <button class="run" onClick={() => wasm.run_task(props.name)}>Run</button>
+                <button class="unset" onClick={() => wasm.unset_task(props.name)}>Unset</button>
             </div>
         </div>
     );

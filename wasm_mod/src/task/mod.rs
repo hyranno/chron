@@ -47,6 +47,7 @@ pub struct TaskInfo {
 pub trait Task {
     fn update(&mut self) -> impl Future<Output = TaskInfo>;
     fn run(&mut self) -> impl Future<Output = TaskInfo>;
+    fn unset(&mut self);
     fn info(&self) -> TaskInfo;
 }
 #[enum_dispatch]

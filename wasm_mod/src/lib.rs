@@ -1,4 +1,4 @@
-use futures::future::join_all;
+use futures::{future::join_all, FutureExt};
 use wasm_bindgen::prelude::*;
 
 pub mod task;
@@ -79,14 +79,25 @@ pub fn store_tasks_json(json_str: String) -> Promise {     // Promise<void>
 #[wasm_bindgen]
 pub fn run_task(name: String) -> Promise {
     console_error_panic_hook::set_once();
-    let future_tasks = async move {
-        let mut tasks = storage::load_tasks().await
-            .map_err(|e| JsValue::from_str(&e))?
-        ;
-        let task = tasks.iter_mut().find(|t| t.info().name == name).ok_or(JsValue::from_str("invalid name"))?;
-        task.run().await;
-        let store_res = storage::store_tasks(tasks).await;
-        store_res.map(|_| JsValue::null()).map_err(|e| JsValue::from_str(&e))
-    };
+    let future_tasks = modify_task(name, |task| {async{task.run().await};})
+        .map(|r| r.map(|_| JsValue::null()).map_err(|e| JsValue::from_str(&e)))
+    ;
     future_to_promise(future_tasks)
+}
+
+#[wasm_bindgen]
+pub fn unset_task(name: String) -> Promise {
+    console_error_panic_hook::set_once();
+    let future_tasks = modify_task(name, |task| task.unset())
+        .map(|r| r.map(|_| JsValue::null()).map_err(|e| JsValue::from_str(&e)))
+    ;
+    future_to_promise(future_tasks)
+}
+
+async fn modify_task(name: String, f: impl FnOnce(&mut TaskEnum)) -> Result<(), String> {
+    let mut tasks = storage::load_tasks().await?;
+    let task = tasks.iter_mut().find(|t| t.info().name == name).ok_or(String::from("invalid name"))?;
+    f(task);
+    let store_res = storage::store_tasks(tasks).await;
+    store_res
 }
